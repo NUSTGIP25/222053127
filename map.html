@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>RERA DEM Viewer</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    html, body, #map {
+      height: 100%;
+      margin: 0;
+    }
+    .layer-toggle {
+      position: absolute;
+      top: 90px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px 14px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      z-index: 1000;
+      font-family: Arial, sans-serif;
+    }
+    .layer-toggle label {
+      display: block;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+    .leaflet-control-attribution {
+      font-size: 10px;
+    }
+    .legend {
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      font-family: Arial, sans-serif;
+      max-width: 250px;
+      line-height: 1.5;
+    }
+    .legend-title {
+      font-weight: bold;
+      margin-bottom: 5px;
+      text-align: center;
+    }
+    .legend-scale {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 5px;
+    }
+    .legend-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 2px;
+    }
+    .gradient-bar {
+      height: 20px;
+      width: 100%;
+      border-radius: 3px;
+      margin: 5px 0;
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+<div class="layer-toggle">
+  <strong>Toggle Raster Layers</strong><br>
+  <label><input type="checkbox" id="wind" onchange="toggleLayer('wind')"> Wind Speed</label>
+  <label><input type="checkbox" id="dni" onchange="toggleLayer('dni')"> DNI</label>
+  <label><input type="checkbox" id="dem" onchange="toggleLayer('dem')"> DEM</label>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+  const map = L.map('map').setView([-22.56, 17.1], 6);  // Centered on Namibia
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
+
+  // Create legend controls
+  const legendControls = {};
+  
+  // Create custom Legend control
+  const LegendControl = L.Control.extend({
+    options: {
+      position: 'bottomright'
+    },
+    
+    onAdd: function() {
+      const div = L.DomUtil.create('div', 'legend');
+      div.id = this.options.id;
+      div.innerHTML = this.options.content;
+      return div;
+    }
+  });
+  
+  // Define legends for each layer
+  const legends = {
+    wind: {
+      title: 'Wind Speed at 100m (m/s)',
+      gradient: 'linear-gradient(to right, #f7fbff, #deebf7, #c6dbef, #9ecae1, #6baed6, #4292c6, #2171b5, #08519c, #08306b)',
+      labels: ['0', '2', '4', '6', '8', '10+']
+    },
+    dni: {
+      title: 'Direct Normal Irradiance (kWh/m²/day)',
+      gradient: 'linear-gradient(to right, #ffffcc, #ffeda0, #fed976, #feb24c, #fd8d3c, #fc4e2a, #e31a1c, #bd0026, #800026)',
+      labels: ['2', '3', '4', '5', '6', '7+']
+    },
+    dem: {
+      title: 'Digital Elevation Model (m)',
+      gradient: 'linear-gradient(to right, #30123b, #4145ab, #4675ed, #39a2fc, #1bcfd4, #12ec5e, #a2fa35, #faf00e, #fa3f07, #7a0403)',
+      labels: ['0', '500', '1000', '1500', '2000+']
+    }
+  };
+  
+  // Create legend controls for each layer
+  for (const [id, legendData] of Object.entries(legends)) {
+    const content = `
+      <div class="legend-title">${legendData.title}</div>
+      <div class="legend-scale">
+        <div class="gradient-bar" style="background: ${legendData.gradient}"></div>
+        <div class="legend-labels">
+          ${legendData.labels.map(label => `<span>${label}</span>`).join('')}
+        </div>
+      </div>
+    `;
+    
+    legendControls[id] = new LegendControl({
+      position: 'bottomright',
+      id: `legend-${id}`,
+      content: content
+    });
+  }
+
+  const wmsLayers = {
+    wind: L.tileLayer.wms("http://localhost:8080/geoserver/GIP_Project/wms", {
+      layers: 'GIP_Project:NAM_wind-speed_100m',
+      format: 'image/png',
+      transparent: true,
+      attribution: "Wind Speed"
+    }),
+    dni: L.tileLayer.wms("http://localhost:8080/geoserver/GIP_Project/wms", {
+      layers: 'GIP_Project:DNI',
+      format: 'image/png',
+      transparent: true,
+      attribution: "DNI"
+    }),
+    dem: L.tileLayer.wms("http://localhost:8080/geoserver/GIP_Project/wms", {
+      layers: 'GIP_Project:NamDEM',
+      format: 'image/png',
+      transparent: true,
+      attribution: "DEM"
+    })
+  };
+
+  function toggleLayer(layerName) {
+    const cb = document.getElementById(layerName);
+    
+    if (cb.checked) {
+      // Add WMS layer
+      wmsLayers[layerName].addTo(map);
+      
+      // Add legend
+      legendControls[layerName].addTo(map);
+    } else {
+      // Remove WMS layer
+      map.removeLayer(wmsLayers[layerName]);
+      
+      // Remove legend
+      map.removeControl(legendControls[layerName]);
+    }
+  }
+  
+  // Alternative legend implementation using GetLegendGraphic
+  // This would fetch actual legends from GeoServer if needed
+  function createGetLegendGraphicURL(layerName) {
+    return `http://localhost:8080/geoserver/wms?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&WIDTH=20&HEIGHT=20&LAYER=${layerName}`;
+  }
+</script>
+
+</body>
+</html>
