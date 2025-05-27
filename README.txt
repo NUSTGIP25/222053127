@@ -24,12 +24,9 @@ Installation Instructions:
 
 6. Download the datasets (a folder called "data") needed for this project by using this link, place it in the "rera-python" once downloaded:
 
-	https://mega.nz/folder/eJ8GVaxS#ROYxmGcmJhjQjJOKI-8s8g
+	https://mega.nz/folder/eJ8GVaxS#ROYxmGcmJhjQjJOKI-8s8g 
 
-7. Create 3 folders named 
-
-7. Ensure the working directory folder is structured as so, create three:
-
+7. Ensure the working directory folder is structured as so:
 	|- rera-python
 		|- .ipynb_checkpoints
 		|- __pycache__
