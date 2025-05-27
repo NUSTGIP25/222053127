@@ -52,9 +52,9 @@ Installation Instructions:
 
 8. Running the App:
 
-	1. To start the main map viewer:
+	1. To start the main map viewer, run this in your terminal:
 		python RERA_DataViewer.py
 	
-	2. To run the AHP suitability analysis:
+	2. To run the AHP suitability analysis, run this in your terminal:
 		python AHP.py
 
